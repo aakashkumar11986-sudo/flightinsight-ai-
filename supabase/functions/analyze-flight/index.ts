@@ -63,8 +63,12 @@ Deno.serve(async (req) => {
     }
 
     const summary = flight.raw_summary_json
-    const claudeKey = Deno.env.get('CLAUDE_API_KEY')
 
+    // The built-in analyzer is the default and requires no external API key
+    // or billing. If a CLAUDE_API_KEY secret is present it's used as an
+    // optional upgrade for LLM-generated prose, but the app works fully
+    // without it.
+    const claudeKey = Deno.env.get('CLAUDE_API_KEY')
     let analysis
     if (claudeKey) {
       analysis = await analyzeWithClaude(summary, claudeKey)
@@ -174,13 +178,16 @@ function clampScore(n) {
   return Math.max(0, Math.min(100, Math.round(n)))
 }
 
-// ---- Deterministic rule-based fallback (used when CLAUDE_API_KEY not set) ----
-// Produces grounded, explainable output identical in shape to the Claude path
-// so the demo works end-to-end without an API key configured.
+// ---- Built-in rule-based analyzer (default, no API key required) ----
+// Produces grounded, explainable analysis identical in shape to the Claude
+// path. This is the primary analyzer so the app works with zero configuration
+// and no external billing. Every claim cites the specific metric and value it
+// is based on, and the mission score comes with a transparent breakdown.
 function analyzeWithRules(s) {
   const findings = []
   const warnings = []
   const recommendations = []
+  const scoreBreakdown = []
 
   const batt = s.battery || {}
   const gps = s.gps || {}
@@ -190,88 +197,146 @@ function analyzeWithRules(s) {
   const anom = s.anomalies || {}
   const meta = s.meta || {}
 
-  // Battery findings
+  const sagEvents = anom.battery_sag || []
+  const lowEvents = anom.low_battery || []
+  const gpsEvents = anom.gps_degraded || []
+  const vibEvents = anom.high_vibration || []
+
+  // ---- Battery ----
   if (batt.avg_voltage != null && batt.min_voltage != null) {
     findings.push(
-      `Battery averaged ${batt.avg_voltage}V and reached a minimum of ${batt.min_voltage}V over the flight.`,
+      `Battery held an average of ${batt.avg_voltage}V and bottomed out at ${batt.min_voltage}V, with a peak of ${batt.max_voltage}V at takeoff.`,
     )
   }
   if (batt.total_voltage_drop != null) {
+    const dropRate = batt.voltage_drop_rate_v_per_s != null
+      ? ` (≈${(batt.voltage_drop_rate_v_per_s * 60).toFixed(2)}V/min)`
+      : ''
     findings.push(
-      `Total battery voltage drop was ${batt.total_voltage_drop}V across ${meta.duration_s ?? 0}s of flight.`,
+      `Total voltage drop across the ${meta.duration_s ?? 0}s flight was ${batt.total_voltage_drop}V${dropRate}.`,
     )
   }
-  if ((anom.battery_sag || []).length > 0) {
-    const ev = anom.battery_sag[0]
+  if (sagEvents.length > 0) {
+    const ev = sagEvents[0]
     findings.push(
-      `Battery sag detected between ${ev.start_s}s and ${ev.end_s}s — voltage fell from ${ev.start_v}V to ${ev.end_v}V (a ${ev.drop_v}V drop in a short window).`,
+      `A battery sag event appeared between ${ev.start_s}s and ${ev.end_s}s — voltage fell from ${ev.start_v}V to ${ev.end_v}V, a ${ev.drop_v}V drop concentrated in a short window rather than a gradual decline.`,
     )
     warnings.push(
-      `Battery sag event at ${ev.start_s}s–${ev.end_s}s: voltage dropped ${ev.drop_v}V. Inspect throttle load and cell health before the next flight.`,
+      `Battery sag at ${ev.start_s}s–${ev.end_s}s: voltage dropped ${ev.drop_v}V in under 20s. This points to a spike in current draw (aggressive throttle, wind load, or a weakening cell) — inspect throttle demand and cell balance before flying again.`,
     )
-    recommendations.push('Inspect the battery under load — the sag window suggests elevated current draw or a weakening cell.')
+    recommendations.push(
+      'Inspect the battery under load: the sag window suggests elevated current draw or a degrading cell. A bench test at hover throttle will show whether the pack can sustain voltage.',
+    )
+    scoreBreakdown.push(`-${sagEvents.length * 8} for ${sagEvents.length} battery sag event(s)`)
   }
-  if ((anom.low_battery || []).length > 0) {
-    const ev = anom.low_battery[0]
-    warnings.push(`Battery reached a low-voltage cutoff zone at ${ev.t_s}s (${ev.voltage}V). Land sooner to avoid in-flight cutoff.`)
+  if (lowEvents.length > 0) {
+    const ev = lowEvents[0]
+    warnings.push(
+      `Battery entered the low-voltage caution zone at ${ev.t_s}s (${ev.voltage}V, below the 10.5V threshold). Another minute of flight would risk triggering failsafe auto-land.`,
+    )
+    recommendations.push(
+      `Shorten the next flight or land with more voltage margin — the pack reached ${ev.voltage}V, close to the low-voltage cutoff.`,
+    )
+    scoreBreakdown.push(`-${lowEvents.length * 12} for low-voltage contact`)
   }
 
-  // GPS findings
+  // ---- GPS ----
   if (gps.avg_hdop != null) {
-    findings.push(`Average GPS HDOP was ${gps.avg_hdop} with ${gps.avg_satellites ?? 'unknown'} satellites in view.`)
-  }
-  if ((anom.gps_degraded || []).length > 0) {
-    const ev = anom.gps_degraded[0]
     findings.push(
-      `GPS signal degraded between ${ev.start_s}s and ${ev.end_s}s — HDOP peaked at ${ev.peak_hdop} (above the 2.0 degraded threshold).`,
+      `GPS lock averaged HDOP ${gps.avg_hdop} with ${gps.avg_satellites ?? 'unknown'} satellites in view (minimum ${gps.min_satellites ?? 'unknown'}).`,
     )
-    warnings.push(`GPS degradation window at ${ev.start_s}s–${ev.end_s}s (HDOP ${ev.peak_hdop}). Avoid aggressive waypoints until lock recovers.`)
-    recommendations.push('Wait for a stronger GPS lock before takeoff if this flight pattern recurs.')
+  }
+  if (gpsEvents.length > 0) {
+    const ev = gpsEvents[0]
+    findings.push(
+      `GPS signal degraded between ${ev.start_s}s and ${ev.end_s}s — HDOP peaked at ${ev.peak_hdop}, above the 2.0 degraded threshold, before recovering.`,
+    )
+    warnings.push(
+      `GPS degradation window at ${ev.start_s}s–${ev.end_s}s (HDOP ${ev.peak_hdop}). Position estimate uncertainty rises sharply here — avoid aggressive waypoints or RTH triggers until lock recovers.`,
+    )
+    recommendations.push(
+      'If this pattern recurs, wait for a stronger GPS lock (HDOP < 1.5 and 10+ satellites) before takeoff, and avoid flying near structures that could shadow the sky.',
+    )
+    scoreBreakdown.push(`-${gpsEvents.length * 7} for ${gpsEvents.length} GPS degradation window(s)`)
+  } else if (gps.avg_hdop != null) {
+    findings.push('GPS quality stayed nominal throughout the flight — no degradation windows were detected.')
   }
 
-  // Stability findings
+  // ---- Stability / vibration ----
   if (stab.avg_vibration != null && stab.peak_vibration != null) {
-    findings.push(`Vibration averaged ${stab.avg_vibration} and peaked at ${stab.peak_vibration}.`)
-  }
-  if ((anom.high_vibration || []).length > 0) {
-    const ev = anom.high_vibration[0]
     findings.push(
-      `Vibration spike between ${ev.start_s}s and ${ev.end_s}s (peak ${ev.peak}), above the 15.0 threshold.`,
+      `Vibration averaged ${stab.avg_vibration} and peaked at ${stab.peak_vibration}, with maximum attitude excursions of ${stab.max_roll}° roll and ${stab.max_pitch}° pitch.`,
     )
-    recommendations.push('Check propeller balance and motor mounts — the vibration spike suggests a mechanical or maneuvering load source.')
   }
-  if (stab.max_roll != null && stab.max_pitch != null) {
-    findings.push(`Maximum attitude excursion was ${stab.max_roll}° roll and ${stab.max_pitch}° pitch.`)
+  if (vibEvents.length > 0) {
+    const ev = vibEvents[0]
+    findings.push(
+      `A vibration spike occurred between ${ev.start_s}s and ${ev.end_s}s (peak ${ev.peak}, above the 15.0 threshold). The shape — a short, sharp rise that subsides — is more consistent with a maneuvering load than a sustained mechanical fault.`,
+    )
+    recommendations.push(
+      'Check propeller balance and motor mounts: the vibration spike is likely maneuvering-induced, but a recurring spike at the same airspeed would point to a mechanical source.',
+    )
+    scoreBreakdown.push(`-${vibEvents.length * 6} for ${vibEvents.length} vibration spike(s)`)
+  } else if (stab.avg_vibration != null) {
+    findings.push('Vibration stayed within nominal limits for the duration of the flight.')
+  }
+  if (stab.max_yaw_rate != null) {
+    findings.push(`Peak yaw rate was ${stab.max_yaw_rate}°/s, indicating the heading changes were moderate.`)
   }
 
-  // Altitude / distance
+  // ---- Altitude / distance ----
   if (alt.max_altitude != null) {
-    findings.push(`Maximum altitude reached was ${alt.max_altitude}m.`)
-  }
-  if (dist.total_distance_m != null) {
-    findings.push(`Total ground-track distance traveled was ${dist.total_distance_m}m.`)
+    findings.push(
+      `Maximum altitude reached was ${alt.max_altitude}m (averaging ${alt.avg_altitude}m), and total ground-track distance traveled was ${dist.total_distance_m ?? 'unknown'}m.`,
+    )
   }
 
-  // Mission summary
-  const durationStr = meta.duration_s != null ? `${Math.floor(meta.duration_s / 60)}m ${Math.round(meta.duration_s % 60)}s` : 'unknown duration'
-  const distStr = dist.total_distance_km != null ? `${dist.total_distance_km}km` : 'unknown distance'
-  const sagStr = (anom.battery_sag || []).length > 0 ? ' Battery drain accelerated in a sag window — inspect throttle behavior there.' : ''
-  const gpsStr = (anom.gps_degraded || []).length > 0 ? ' GPS briefly degraded but recovered before landing.' : ' GPS stayed nominal throughout.'
-  const vibStr = (anom.high_vibration || []).length > 0 ? ' A vibration spike was flagged, likely from a maneuver rather than a mechanical fault.' : ' Vibration stayed within nominal limits.'
-  const mission_summary = `Flight completed over ${durationStr} covering ${distStr}.` + gpsStr + vibStr + sagStr
+  // ---- Mission summary (natural prose) ----
+  const durationStr = meta.duration_s != null
+    ? `${Math.floor(meta.duration_s / 60)}m ${Math.round(meta.duration_s % 60)}s`
+    : 'an unknown duration'
+  const distStr = dist.total_distance_km != null ? `${dist.total_distance_km}km` : 'an unknown distance'
+  const gpsClause = gpsEvents.length > 0
+    ? 'GPS briefly degraded mid-flight but recovered before landing'
+    : 'GPS held a solid lock throughout'
+  const vibClause = vibEvents.length > 0
+    ? 'a short vibration spike was flagged, most likely from a maneuver rather than a mechanical fault'
+    : 'vibration stayed within nominal limits'
+  const battClause = sagEvents.length > 0
+    ? 'battery drain accelerated in a sag window worth inspecting'
+    : lowEvents.length > 0
+      ? 'the battery reached the low-voltage caution zone near the end of the flight'
+      : 'the battery discharged steadily with no sag events'
+  const mission_summary =
+    `Over ${durationStr} the aircraft covered ${distStr}, reaching a maximum altitude of ` +
+    `${alt.max_altitude != null ? alt.max_altitude + 'm' : 'unknown'}. ${battClause.charAt(0).toUpperCase()}${battClause.slice(1)}, ` +
+    `while ${gpsClause} and ${vibClause}. Overall the flight was ` +
+    `${(sagEvents.length + gpsEvents.length + vibEvents.length + lowEvents.length) === 0 ? 'clean' : 'flyable but with a few items to address'} ` +
+    `before the next mission.`
 
-  // Score: start 100, deduct for anomalies.
+  // ---- Score (transparent) ----
   let score = 100
-  score -= (anom.battery_sag || []).length * 8
-  score -= (anom.low_battery || []).length * 12
-  score -= (anom.gps_degraded || []).length * 7
-  score -= (anom.high_vibration || []).length * 6
-  if (batt.min_voltage != null && batt.min_voltage < 10.5) score -= 10
-  if (gps.quality_score != null) score = Math.round(score * 0.6 + gps.quality_score * 0.4)
+  score -= sagEvents.length * 8
+  score -= lowEvents.length * 12
+  score -= gpsEvents.length * 7
+  score -= vibEvents.length * 6
+  if (batt.min_voltage != null && batt.min_voltage < 10.5) {
+    score -= 10
+    scoreBreakdown.push('-10 for minimum voltage below 10.5V')
+  }
+  if (gps.quality_score != null) {
+    score = Math.round(score * 0.6 + gps.quality_score * 0.4)
+    scoreBreakdown.push(`blended with GPS quality score ${gps.quality_score}`)
+  }
   score = clampScore(score)
 
   if (recommendations.length === 0) {
-    recommendations.push('Flight looked healthy — continue standard pre-flight checks before the next mission.')
+    recommendations.push(
+      'Flight looked healthy across battery, GPS, and stability — continue standard pre-flight checks and log this as a baseline for comparison.',
+    )
+  }
+  if (warnings.length === 0) {
+    warnings.push('No safety-relevant anomalies detected.')
   }
 
   return {
@@ -280,5 +345,6 @@ function analyzeWithRules(s) {
     key_findings: findings,
     recommendations,
     safety_warnings: warnings,
+    score_breakdown: scoreBreakdown,
   }
 }

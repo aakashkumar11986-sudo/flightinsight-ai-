@@ -161,8 +161,15 @@ function answerWithRules(question, ctx) {
     return `Total ground-track distance was ${dist.total_distance_m}m (${dist.total_distance_km}km) over a ${meta.duration_s}s flight.`
   }
 
-  if (/score|health|overall|how.*do|how.*was|good|bad/.test(q)) {
-    return ctx.ai_summary || 'See the Mission Score and AI Summary on the report for an overall assessment of this flight.'
+  if (/score|health|overall|how.*do|how.*was|good|bad|grade|rating/.test(q)) {
+    const f = ctx.ai_findings || {}
+    const parts = []
+    if (ctx.ai_summary) parts.push(ctx.ai_summary)
+    if (Array.isArray(f.score_breakdown) && f.score_breakdown.length > 0) {
+      parts.push(`Score breakdown: ${f.score_breakdown.join(', ')}.`)
+    }
+    if (parts.length > 0) return parts.join(' ')
+    return 'See the Mission Score gauge and AI Summary on the report for an overall assessment of this flight.'
   }
 
   // Default: return the AI summary if present, else a grounded pointer.

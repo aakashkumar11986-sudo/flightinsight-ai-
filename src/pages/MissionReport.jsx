@@ -129,6 +129,20 @@ export default function MissionReport({ flightId, onHome }) {
             <div className="flex gap-6 items-center flex-wrap">
               <div className="rounded-md p-4" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
                 <Gauge score={flight?.mission_score} />
+                {Array.isArray(findings.score_breakdown) && findings.score_breakdown.length > 0 && (
+                  <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+                    <div className="font-mono mb-1.5" style={{ color: MUTED, fontSize: 10, letterSpacing: 1 }}>
+                      SCORE BREAKDOWN
+                    </div>
+                    <ul className="flex flex-col gap-1">
+                      {findings.score_breakdown.map((t, i) => (
+                        <li key={i} className="font-mono text-[11px]" style={{ color: MUTED }}>
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="flex gap-4 flex-wrap">
                 <StatReadout label="DISTANCE" value={dist.total_distance_km ?? '--'} unit="km" />
