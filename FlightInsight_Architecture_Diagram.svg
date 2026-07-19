@@ -1,0 +1,90 @@
+<svg viewBox="0 0 1200 720" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, Menlo, monospace">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#4FD8E8"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#F0A83A"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="720" fill="#0F1620"/>
+
+  <!-- Grid texture -->
+  <g stroke="#1C2733" stroke-width="1">
+    <line x1="0" y1="90" x2="1200" y2="90"/>
+    <line x1="0" y1="700" x2="1200" y2="700"/>
+  </g>
+
+  <!-- Title -->
+  <text x="60" y="55" fill="#E7ECEF" font-size="26" font-weight="700" letter-spacing="2">FLIGHTINSIGHT AI — SYSTEM ARCHITECTURE</text>
+  <text x="60" y="78" fill="#8B98A5" font-size="13" letter-spacing="1">v1 MVP · CSV telemetry pipeline</text>
+
+  <!-- Frontend -->
+  <g>
+    <rect x="60" y="150" width="230" height="110" rx="6" fill="#16202C" stroke="#4FD8E8" stroke-width="1.5"/>
+    <text x="80" y="182" fill="#4FD8E8" font-size="13" letter-spacing="1">01 · FRONTEND</text>
+    <text x="80" y="210" fill="#E7ECEF" font-size="16" font-weight="700">React / Next.js</text>
+    <text x="80" y="232" fill="#8B98A5" font-size="12">Dashboard · Upload UI</text>
+    <text x="80" y="248" fill="#8B98A5" font-size="12">Copilot chat panel</text>
+  </g>
+
+  <!-- Backend API -->
+  <g>
+    <rect x="400" y="150" width="230" height="110" rx="6" fill="#16202C" stroke="#4FD8E8" stroke-width="1.5"/>
+    <text x="420" y="182" fill="#4FD8E8" font-size="13" letter-spacing="1">02 · BACKEND API</text>
+    <text x="420" y="210" fill="#E7ECEF" font-size="16" font-weight="700">Supabase Edge Fn</text>
+    <text x="420" y="232" fill="#8B98A5" font-size="12">Upload handling</text>
+    <text x="420" y="248" fill="#8B98A5" font-size="12">Orchestrates parse + AI calls</text>
+  </g>
+
+  <!-- AI Layer -->
+  <g>
+    <rect x="740" y="150" width="230" height="110" rx="6" fill="#16202C" stroke="#F0A83A" stroke-width="1.5"/>
+    <text x="760" y="182" fill="#F0A83A" font-size="13" letter-spacing="1">03 · AI LAYER</text>
+    <text x="760" y="210" fill="#E7ECEF" font-size="16" font-weight="700">Claude API</text>
+    <text x="760" y="232" fill="#8B98A5" font-size="12">Mission summary + score</text>
+    <text x="760" y="248" fill="#8B98A5" font-size="12">Grounded Q&amp;A copilot</text>
+  </g>
+
+  <!-- Telemetry Parser -->
+  <g>
+    <rect x="400" y="340" width="230" height="110" rx="6" fill="#16202C" stroke="#4CAF7D" stroke-width="1.5"/>
+    <text x="420" y="372" fill="#4CAF7D" font-size="13" letter-spacing="1">04 · TELEMETRY PARSER</text>
+    <text x="420" y="400" fill="#E7ECEF" font-size="16" font-weight="700">CSV → JSON Summary</text>
+    <text x="420" y="422" fill="#8B98A5" font-size="12">Battery / GPS / vibration stats</text>
+    <text x="420" y="438" fill="#8B98A5" font-size="12">Anomaly window detection</text>
+  </g>
+
+  <!-- Database -->
+  <g>
+    <rect x="60" y="340" width="230" height="110" rx="6" fill="#16202C" stroke="#4FD8E8" stroke-width="1.5"/>
+    <text x="80" y="372" fill="#4FD8E8" font-size="13" letter-spacing="1">05 · DATABASE</text>
+    <text x="80" y="400" fill="#E7ECEF" font-size="16" font-weight="700">Postgres (Supabase)</text>
+    <text x="80" y="422" fill="#8B98A5" font-size="12">flights · insights · users</text>
+  </g>
+
+  <!-- Deployment -->
+  <g>
+    <rect x="740" y="340" width="230" height="110" rx="6" fill="#16202C" stroke="#8B98A5" stroke-width="1.5"/>
+    <text x="760" y="372" fill="#8B98A5" font-size="13" letter-spacing="1">06 · DEPLOYMENT</text>
+    <text x="760" y="400" fill="#E7ECEF" font-size="16" font-weight="700">Vercel + Supabase</text>
+    <text x="760" y="422" fill="#8B98A5" font-size="12">Frontend + backend hosting</text>
+  </g>
+
+  <!-- Arrows -->
+  <path d="M290,205 L400,205" stroke="#4FD8E8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M630,205 L740,205" stroke="#4FD8E8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M515,260 L515,340" stroke="#4CAF7D" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M400,395 L290,395" stroke="#4FD8E8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M175,340 L175,260" stroke="#4FD8E8" stroke-width="2" fill="none" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+  <path d="M855,260 L855,340" stroke="#F0A83A" stroke-width="2" fill="none" marker-end="url(#arrowAmber)"/>
+
+  <!-- Legend / flow note -->
+  <text x="60" y="510" fill="#8B98A5" font-size="12">Flow: user uploads CSV via frontend → backend triggers parser → structured summary saved to DB → AI layer generates</text>
+  <text x="60" y="528" fill="#8B98A5" font-size="12">insights from the summary (never raw rows) → result returned to frontend for the Mission Report + Copilot chat.</text>
+
+  <!-- Footer -->
+  <text x="60" y="670" fill="#4FD8E8" font-size="12" letter-spacing="1">DESIGN PRINCIPLE →</text>
+  <text x="230" y="670" fill="#E7ECEF" font-size="12">AI always receives parsed summaries, not raw telemetry — keeps cost low and answers grounded.</text>
+</svg>
