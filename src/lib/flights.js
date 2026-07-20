@@ -46,17 +46,6 @@ export async function listRecentFlights(limit = 20) {
 }
 
 /**
- * Update a flight with the AI analysis result.
- */
-export async function saveFlightAnalysis(id, { mission_score, ai_summary, ai_findings, status }) {
-  const { error } = await supabase
-    .from('flights')
-    .update({ mission_score, ai_summary, ai_findings, status })
-    .eq('id', id)
-  if (error) throw new Error(`Failed to save analysis: ${error.message}`)
-}
-
-/**
  * Call the analyze-flight edge function to generate the AI mission summary,
  * score, findings, recommendations, and safety warnings for a flight.
  * Returns the parsed JSON from the edge function.
