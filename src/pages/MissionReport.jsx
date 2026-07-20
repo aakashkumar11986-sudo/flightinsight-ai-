@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Chrome as Home, ArrowLeft, TriangleAlert as AlertTriangle, Lightbulb, ShieldAlert, Loader as Loader2 } from 'lucide-react'
+import { Chrome as Home, ArrowLeft, TriangleAlert as AlertTriangle, Lightbulb, ShieldAlert, Loader as Loader2, Clock, Settings, ArrowUpRight } from 'lucide-react'
 import Wordmark from '../components/Wordmark.jsx'
 import Gauge from '../components/Gauge.jsx'
 import StatReadout from '../components/StatReadout.jsx'
@@ -27,7 +27,7 @@ function fmtDuration(s) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-export default function MissionReport({ flightId, onHome }) {
+export default function MissionReport({ flightId, onHome, onHistory, onSettings, onBattery, onGps }) {
   const [flight, setFlight] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -105,6 +105,12 @@ export default function MissionReport({ flightId, onHome }) {
         <button onClick={onHome} className="transition-opacity hover:opacity-80" title="Home">
           <Home size={18} color={CYAN} />
         </button>
+        <button onClick={onHistory} className="transition-opacity hover:opacity-80" title="Flight History">
+          <Clock size={18} color={MUTED} />
+        </button>
+        <button onClick={onSettings} className="transition-opacity hover:opacity-80" title="Settings">
+          <Settings size={18} color={MUTED} />
+        </button>
         <ArrowLeft size={18} color={MUTED} className="opacity-40" />
       </div>
 
@@ -168,15 +174,35 @@ export default function MissionReport({ flightId, onHome }) {
 
             {/* Charts grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard title="BATTERY VOLTAGE" flag={sagFlag}>
-                <BatteryChart data={series.battery || []} sagWindows={anom.battery_sag || []} lowVoltage={10.5} />
-              </ChartCard>
+              <div className="relative group">
+                <ChartCard title="BATTERY VOLTAGE" flag={sagFlag}>
+                  <BatteryChart data={series.battery || []} sagWindows={anom.battery_sag || []} lowVoltage={10.5} />
+                </ChartCard>
+                <button
+                  onClick={onBattery}
+                  className="absolute top-3 right-3 flex items-center gap-1 font-mono text-[10px] px-2 py-1 rounded transition-colors"
+                  style={{ color: CYAN, background: 'rgba(15,22,32,0.6)', border: `1px solid ${BORDER}` }}
+                  title="Battery detail"
+                >
+                  DETAIL <ArrowUpRight size={11} />
+                </button>
+              </div>
               <ChartCard title="ALTITUDE">
                 <AltitudeChart data={series.altitude || []} />
               </ChartCard>
-              <ChartCard title="GPS QUALITY (HDOP)" flag={gpsFlag}>
-                <GpsChart data={series.gps || []} degradedWindows={anom.gps_degraded || []} hdopThreshold={2.0} />
-              </ChartCard>
+              <div className="relative group">
+                <ChartCard title="GPS QUALITY (HDOP)" flag={gpsFlag}>
+                  <GpsChart data={series.gps || []} degradedWindows={anom.gps_degraded || []} hdopThreshold={2.0} />
+                </ChartCard>
+                <button
+                  onClick={onGps}
+                  className="absolute top-3 right-3 flex items-center gap-1 font-mono text-[10px] px-2 py-1 rounded transition-colors"
+                  style={{ color: CYAN, background: 'rgba(15,22,32,0.6)', border: `1px solid ${BORDER}` }}
+                  title="GPS detail"
+                >
+                  DETAIL <ArrowUpRight size={11} />
+                </button>
+              </div>
               <ChartCard title="STABILITY / VIBRATION" flag={vibFlag}>
                 <StabilityChart data={series.stability || []} vibWindows={anom.high_vibration || []} vibThreshold={15.0} />
               </ChartCard>

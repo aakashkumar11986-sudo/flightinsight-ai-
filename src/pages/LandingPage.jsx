@@ -1,4 +1,4 @@
-import { ArrowRight, Zap, ShieldCheck, MessageSquare } from 'lucide-react'
+import { ArrowRight, Zap, ShieldCheck, MessageSquare, Clock, Settings } from 'lucide-react'
 import Wordmark from '../components/Wordmark.jsx'
 
 const CYAN = '#4FD8E8'
@@ -9,18 +9,34 @@ const MUTED = '#8B98A5'
 const PANEL = '#16202C'
 const BORDER = '#243040'
 
-export default function LandingPage({ onGo }) {
+export default function LandingPage({ onGo, onHistory, onSettings }) {
   return (
     <div className="min-h-screen bg-navy font-sans">
       <div className="flex items-center justify-between px-10 py-6" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <Wordmark />
-        <button
-          onClick={onGo}
-          className="text-sm px-4 py-2 rounded-md font-mono"
-          style={{ color: '#0F1620', background: CYAN }}
-        >
-          UPLOAD FLIGHT LOG
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onHistory}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-md font-mono transition-colors hover:bg-[#1c2836]"
+            style={{ color: MUTED }}
+          >
+            <Clock size={14} /> HISTORY
+          </button>
+          <button
+            onClick={onSettings}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-md font-mono transition-colors hover:bg-[#1c2836]"
+            style={{ color: MUTED }}
+          >
+            <Settings size={14} /> SETTINGS
+          </button>
+          <button
+            onClick={onGo}
+            className="text-sm px-4 py-2 rounded-md font-mono"
+            style={{ color: '#0F1620', background: CYAN }}
+          >
+            UPLOAD FLIGHT LOG
+          </button>
+        </div>
       </div>
 
       <div className="px-10 pt-20 pb-16 max-w-3xl">
