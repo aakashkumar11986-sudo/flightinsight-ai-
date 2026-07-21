@@ -449,7 +449,8 @@ export function generateSampleCSV() {
   for (let i = 0; i < points; i++) {
     const t = +(i * 3).toFixed(1) // 0..357s, ~6min
     let v = 12.6 - i * 0.0135
-    if (t > 220) v -= (t - 220) * 0.0035
+    if (t > 220 && t <= 240) v -= (t - 220) * 0.025 // steep sag: ~0.5V drop in 20s
+    else if (t > 240) v -= 0.5 // hold the sag drop
     v = +v.toFixed(2)
     const alt =
       i < 6 ? i * 9 : i > points - 8 ? Math.max(0, (points - i) * 11) : 54 + Math.sin(i / 4) * 7
